@@ -52,7 +52,7 @@ jobs:
       run: |
         git clone https://github.com/google/googletest
         cd googletest
-        mkdiforr build
+        mkdir build
         cd build
         cmake -DCMAKE_CXX_FLAGS=-std=c++1z -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=$HOME/usr ..
         make -j8 all install
