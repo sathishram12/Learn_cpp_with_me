@@ -56,6 +56,5 @@ install:
 script:
   - mkdir -p build
   - cd build
-  - cmake -DCMAKE_PREFIX_PATH=~/usr ../src
-  - make -j8
-  - ctest -V
+  - cmake -DENABLE_TESTING=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
+  - cmake --build . --target coverage
