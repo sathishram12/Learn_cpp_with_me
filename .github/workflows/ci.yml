@@ -61,6 +61,32 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake -DENABLE_TESTING=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
-        cmake --build . --target coverage
+        cmake -DCMAKE_PREFIX_PATH=$HOME/usr ..
+        make -j8
         ctest -V
+
+    - name: Capture code coverage
+      if: ${{ success() }}
+      run: |
+        lcov --directory . --capture --output-file coverage.info
+        lcov --remove coverage.info '/usr/include/*' --output-file coverage.info  # Filter out system headers
+        lcov --list coverage.info  # Optional: show coverage details
+
+    - name: Upload code coverage to Codecov
+      if: ${{ success() }}
+      uses: codecov/codecov-action@v2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./build/coverage.info
+        flags: unittests
+
+    - name: Report on Codecov upload
+      if: ${{ success() }}
+      run: |
+        echo "Code coverage has been uploaded to Codecov"
+
+    - name: Fail if tests fail or coverage check fails
+      if: ${{ failure() }}
+      run: |
+        echo "Tests or coverage check failed"
+        exit 1
