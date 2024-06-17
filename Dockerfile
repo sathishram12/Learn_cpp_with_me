@@ -1,39 +1,51 @@
-# Get the base Ubuntu image from Docker Hub
-FROM ubuntu:22.04
+# Use the official Ubuntu image as a base
+FROM ubuntu:20.04
 
-# Update apps on the base image
-RUN apt-get -y update && apt-get install -y
+# Set non-interactive mode for APT
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Install git
-RUN apt install -y git
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    cmake \
+    g++ \
+    lcov \
+    libgtest-dev \
+    wget \
+    curl \
+    python3 \
+    python3-pip \
+    && apt-get clean
 
-# Install the G++ compiler
-RUN apt install -y build-essential
+# Install CMake if needed
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.22.2/cmake-3.22.2-linux-x86_64.sh -O /tmp/cmake.sh \
+    && chmod +x /tmp/cmake.sh \
+    && /tmp/cmake.sh --skip-license --prefix=/usr/local \
+    && rm /tmp/cmake.sh
 
-# Install CMake dependencies
-RUN apt install libssl-dev
-RUN apt install -y libprotobuf-dev protobuf-compiler
+# Install conan
+RUN pip3 install conan
 
-# Install CMake
-RUN apt install -y cmake
+# Install yaml-cpp
+RUN git clone https://github.com/jbeder/yaml-cpp && cd yaml-cpp && mkdir build && cd build && cmake -DYAML_BUILD_SHARED_LIBS=ON .. && make -j8 all install
 
-# Install GDB
-RUN apt install -y gdb
+# Install tinyxml2
+RUN git clone https://github.com/leethomason/tinyxml2 && cd tinyxml2 && mkdir build && cd build && cmake .. && make -j8 all install
 
-# Install valgrind
-RUN apt install -y valgrind
+# Install Google Benchmark
+RUN git clone https://github.com/google/benchmark && cd benchmark && mkdir build && cd build && cmake -DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON .. && make -j8 all install
 
-# Install clang-tidy
-RUN apt install -y clang-tidy
+# Install Google Test
+RUN git clone https://github.com/google/googletest && cd googletest && mkdir build && cd build && cmake .. && make -j8 all install
 
-# Install clang-format
-RUN apt install -y clang-format
+# Copy the project files
+COPY . /app
 
-# Install Python (required for gcov)
-RUN apt install -y python3-pip
+# Set working directory
+WORKDIR /app
 
-# Install gcov
-RUN pip install gcovr
+# Build the project
+RUN mkdir build && cd build && cmake -DENABLE_TESTING=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --target coverage
 
-# Install lcov
-RUN apt install -y lcov
+# Set the entrypoint to run tests
+CMD ["ctest", "-V"]

@@ -16,74 +16,27 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y lcov
+    - name: Build Docker image
+      run: docker build -t my-project:latest .
 
-    - name: Install yaml-cpp
-      run: |
-        git clone https://github.com/jbeder/yaml-cpp
-        cd yaml-cpp
-        mkdir build
-        cd build
-        cmake -DCMAKE_CXX_FLAGS=-std=c++1z -DCMAKE_BUILD_TYPE=Release -DYAML_BUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX:PATH=$HOME/usr ..
-        make -j8 all install
-
-    - name: Install tinyxml2
-      run: |
-        git clone https://github.com/leethomason/tinyxml2
-        cd tinyxml2
-        mkdir build
-        cd build
-        cmake -DCMAKE_CXX_FLAGS=-std=c++1z -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=$HOME/usr ..
-        make -j8 all install
-
-    - name: Install benchmark
-      run: |
-        git clone https://github.com/google/benchmark
-        cd benchmark
-        mkdir build
-        cd build
-        cmake -DCMAKE_CXX_FLAGS=-std=c++1z -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DGOOGLETEST_PATH=third_party/googletest -DCMAKE_INSTALL_PREFIX:PATH=$HOME/usr ..
-        make -j8 all install
-
-    - name: Install googletest
-      run: |
-        git clone https://github.com/google/googletest
-        cd googletest
-        mkdir build
-        cd build
-        cmake -DCMAKE_CXX_FLAGS=-std=c++1z -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=$HOME/usr ..
-        make -j8 all install
-
-    - name: Build and run tests
-      run: |
-        mkdir -p build
-        cd build
-        cmake -DENABLE_TESTING=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
-        cmake --build . --target coverage
-        ctest -V
+    - name: Run tests in Docker
+      run: docker run --rm my-project:latest
 
     - name: Capture code coverage
-      if: ${{ success() }}
       run: |
-        lcov --directory . --capture --output-file coverage.info
-        lcov --remove coverage.info '/usr/include/*' --output-file coverage.info  # Filter out system headers
-        lcov --list coverage.info  # Optional: show coverage details
+        docker run --rm my-project:latest lcov --directory /app/build --capture --output-file /app/build/coverage.info
+        docker run --rm my-project:latest lcov --remove /app/build/coverage.info '/usr/include/*' --output-file /app/build/coverage.info
+        docker cp $(docker create my-project:latest):/app/build/coverage.info .
 
     - name: Upload code coverage to Codecov
-      if: ${{ success() }}
       uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./build/coverage.info
+        file: ./coverage.info
         flags: unittests
 
     - name: Report on Codecov upload
-      if: ${{ success() }}
-      run: |
-        echo "Code coverage has been uploaded to Codecov"
+      run: echo "Code coverage has been uploaded to Codecov"
 
     - name: Fail if tests fail or coverage check fails
       if: ${{ failure() }}
